@@ -278,7 +278,7 @@ async function fetchJoakimData() {
         .filter(c => c.status === "onboarded")
         .map(c => ({ name: c.name, onboardingDate: c.onboardingDate! })),
       pendingContacts: contacts
-        .filter(c => c.status !== "onboarded")
+        .filter((c): c is ContactRow & { status: "needs-app" | "kyc-pending" } => c.status !== "onboarded")
         .map(c => ({ name: c.name, status: c.status })),
     })
   }
