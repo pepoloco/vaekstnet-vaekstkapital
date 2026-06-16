@@ -238,6 +238,16 @@ export default function UsersPage() {
         </div>
       </nav>
 
+      {/* Tab bar */}
+      <div style={{ background: "#1a1d35", borderBottom: "1px solid rgba(255,255,255,.08)", display: "flex", padding: "0 24px", gap: 4 }}>
+        <a href="/users" style={{ fontSize: 11, fontWeight: 600, letterSpacing: ".06em", textTransform: "uppercase", padding: "12px 14px", color: "#fff", textDecoration: "none", borderBottom: "2px solid #5a4998" }}>
+          User Activation
+        </a>
+        <a href="/joakim" style={{ fontSize: 11, fontWeight: 600, letterSpacing: ".06em", textTransform: "uppercase", padding: "12px 14px", color: "rgba(255,255,255,.4)", textDecoration: "none", borderBottom: "2px solid transparent" }}>
+          Joakim VaekstNet Dashboard Draft
+        </a>
+      </div>
+
       <div style={s.main}>
 
         {/* Page title */}
