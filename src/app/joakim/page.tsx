@@ -74,8 +74,8 @@ const s = {
 
 function StatusBadge({ status }: { status: string }) {
   const cfg: Record<string, { label: string; bg: string; color: string }> = {
-    "needs-app":   { label: "Needs app",   bg: "rgba(192,57,43,.1)",   color: "#c0392b" },
-    "kyc-pending": { label: "KYC pending", bg: "rgba(150,128,58,.13)", color: "#96803a" },
+    "needs-app":   { label: "Not Registered Yet", bg: "rgba(192,57,43,.1)",   color: "#c0392b" },
+    "kyc-pending": { label: "Not Onboarded Yet",  bg: "rgba(150,128,58,.13)", color: "#96803a" },
     "onboarded":   { label: "Onboarded",   bg: "rgba(21,97,76,.12)",   color: "#15624c" },
   }
   const c = cfg[status] ?? { label: status, bg: "#f0ede6", color: "#7a7e9a" }
@@ -212,7 +212,7 @@ export default function JoakimPage() {
         {/* Title */}
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 11, color: "#7a7e9a", letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 4 }}>Report</div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: "#121428", margin: "0 0 4px" }}>Joakim VaekstNet Dashboard Draft</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: "#121428", margin: "0 0 4px" }}>Joakim VaekstNet Dashboard</h1>
           <p style={{ fontSize: 12, color: "#7a7e9a", margin: 0 }}>Based on closed-won deals · sorted by investment date · contacts requiring VaekstNet onboarding</p>
         </div>
 

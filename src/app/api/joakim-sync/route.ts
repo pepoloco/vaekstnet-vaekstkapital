@@ -305,10 +305,10 @@ async function fetchJoakimData() {
     .filter(r => r.onboardedContacts.length > 0)
     .sort(sortByDate)
 
-  // Recently onboarded contacts (last 90 days)
+  // Recently onboarded contacts (last 90 days) — requires BOTH customer_id (registered) AND onboarding_complete_time (completed)
   const recentlyOnboarded = contactRows
     .filter(r => {
-      if (!r.onboardingDate) return false
+      if (!r.hasApp || !r.onboardingDate) return false
       return (now.getTime() - new Date(r.onboardingDate).getTime()) / 86400000 <= 90
     })
     .sort((a, b) => new Date(b.onboardingDate!).getTime() - new Date(a.onboardingDate!).getTime())
