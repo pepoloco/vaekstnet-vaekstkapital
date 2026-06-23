@@ -12,8 +12,8 @@ const C = {
   B: "#2d68b0", Bd: "rgba(45,104,176,.12)",
   MU: "#7a7e9a",
 }
-const DEV_COLORS = [C.B, C.G, C.A, "#9a96a8"]
-const DEV_BG     = [C.Bd, C.Gd, C.Ad, "rgba(154,150,168,.14)"]
+const DEV_COLORS = [C.B, C.G, "#9a96a8"]
+const DEV_BG     = [C.Bd, C.Gd, "rgba(154,150,168,.14)"]
 const tip = { backgroundColor: "#fff", borderColor: "rgba(18,20,40,.1)", borderWidth: 1, titleColor: "#121428", bodyColor: "#3c3f5e", padding: 10, cornerRadius: 6, displayColors: false }
 const gr  = { color: "rgba(18,20,40,.05)" }
 const sc  = { x: { grid: gr, ticks: { color: C.MU, font: { size: 10 } } }, y: { grid: gr, ticks: { color: C.MU, font: { size: 10 } } } }
@@ -21,6 +21,10 @@ const sc  = { x: { grid: gr, ticks: { color: C.MU, font: { size: 10 } } }, y: { 
 const fmtDateTime = (iso: string) => {
   const d = new Date(iso)
   return isNaN(d.getTime()) ? "—" : d.toLocaleString("da-DK", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
+}
+const fmtDateOnly = (iso: string) => {
+  const d = new Date(iso)
+  return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("da-DK", { day: "2-digit", month: "short", year: "numeric" })
 }
 const fmtAxisDate = (iso: string) => {
   const d = new Date(iso)
@@ -60,8 +64,6 @@ const s = {
   tcardS:  { fontSize: 11, color: "#7a7e9a" },
   th:      { fontSize: 10, fontWeight: 600, letterSpacing: ".07em", textTransform: "uppercase" as const, color: "#7a7e9a", padding: "7px 16px", textAlign: "left" as const, borderBottom: "1px solid #e2ddd4", background: "#f7f5f0" },
   td:      { padding: "9px 16px", borderBottom: "1px solid #e2ddd4", color: "#3c3f5e", fontSize: 12 },
-  upcard:  { background: "#fff", border: "1px solid #e2ddd4", borderRadius: 10, padding: "16px 20px" },
-  dropzone:{ marginTop: 12, border: "1.5px dashed #d8d3c8", borderRadius: 8, padding: "28px 16px", textAlign: "center" as const, background: "#fbfaf7", cursor: "pointer" },
 }
 
 const RANGE_OPTIONS = [
@@ -103,11 +105,8 @@ export default function QrAnalyticsPage() {
   const [range, setRange] = useState<string>("30d")
   const [customFrom, setCustomFrom] = useState("")
   const [customTo, setCustomTo] = useState("")
-  const [uploading, setUploading] = useState<{ website: boolean; card: boolean }>({ website: false, card: false })
-  const [uploadMsg, setUploadMsg] = useState<{ website: string; card: string }>({ website: "", card: "" })
-  const [dragOver, setDragOver] = useState<{ website: boolean; card: boolean }>({ website: false, card: false })
   const [visibleScans, setVisibleScans] = useState(8)
-  const [cardSyncing, setCardSyncing] = useState<false | "sync" | "backfill">(false)
+  const [cardSyncing, setCardSyncing] = useState(false)
   const [cardSyncMsg, setCardSyncMsg] = useState("")
 
   useEffect(() => {
@@ -123,10 +122,20 @@ export default function QrAnalyticsPage() {
   }, [])
 
   function loadData() {
+    console.log("[qr-analytics] loadData: fetching /api/qr-data")
     fetch("/api/qr-data")
       .then(r => r.json())
-      .then(d => { if (d.error) setError(d.error); else setData(d); setLoading(false) })
-      .catch(() => { setError("Failed to load"); setLoading(false) })
+      .then(d => {
+        console.log("[qr-analytics] loadData: response", d)
+        if (d.error) setError(d.error)
+        else setData(d)
+        setLoading(false)
+      })
+      .catch(err => {
+        console.error("[qr-analytics] loadData: failed", err)
+        setError("Failed to load")
+        setLoading(false)
+      })
   }
 
   useEffect(() => {
@@ -134,42 +143,21 @@ export default function QrAnalyticsPage() {
     loadData()
   }, [status])
 
-  async function handleUpload(source: "website" | "card", file: File) {
-    setUploading(u => ({ ...u, [source]: true }))
-    setUploadMsg(m => ({ ...m, [source]: "" }))
-    try {
-      const csv = await file.text()
-      const r = await fetch("/api/qr-upload", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source, csv }),
-      })
-      const j = await r.json()
-      if (j.error) {
-        setUploadMsg(m => ({ ...m, [source]: `Error: ${j.error}` }))
-      } else {
-        setUploadMsg(m => ({ ...m, [source]: `Imported ${j.imported} scans${j.skipped ? `, skipped ${j.skipped}` : ""}` }))
-        loadData()
-      }
-    } catch (e) {
-      setUploadMsg(m => ({ ...m, [source]: "Upload failed: " + e }))
-    }
-    setUploading(u => ({ ...u, [source]: false }))
-  }
-
   async function handleClear() {
     if (!window.confirm("Clear all uploaded QR scan data? This cannot be undone.")) return
     await fetch("/api/qr-clear", { method: "POST" })
     loadData()
   }
 
-  async function handleCardSync(mode: "sync" | "backfill") {
-    setCardSyncing(mode)
+  async function handleCardSync() {
+    console.log("[qr-analytics] Sync now clicked")
+    setCardSyncing(true)
     setCardSyncMsg("")
     try {
-      const days = mode === "backfill" ? 30 : 2
-      const r = await fetch(`/api/qr-card-sync?days=${days}`)
+      const r = await fetch(`/api/qr-card-sync?days=2`)
+      console.log("[qr-analytics] /api/qr-card-sync HTTP status", r.status)
       const j = await r.json()
+      console.log("[qr-analytics] /api/qr-card-sync response", j)
       if (!j.ok) {
         setCardSyncMsg(`Error: ${j.error}`)
       } else {
@@ -177,6 +165,7 @@ export default function QrAnalyticsPage() {
         loadData()
       }
     } catch (e) {
+      console.error("[qr-analytics] Sync now threw", e)
       setCardSyncMsg("Sync failed: " + e)
     }
     setCardSyncing(false)
@@ -185,9 +174,10 @@ export default function QrAnalyticsPage() {
   // ── Derived data ──────────────────────────────────────────────────────
   const combined = useMemo(() => {
     if (!data) return []
-    const website = (data.website?.records ?? []).map((r: any) => ({ ...r, source: "Website QR" }))
-    const card    = (data.card?.records ?? []).map((r: any) => ({ ...r, source: "Business Card QR" }))
-    return [...website, ...card]
+    const website  = (data.website?.records ?? []).map((r: any) => ({ ...r, source: "Website QR" }))
+    const card     = (data.card?.records ?? []).map((r: any) => ({ ...r, source: "Business Card QR" }))
+    const magazine = (data.magazine?.records ?? []).map((r: any) => ({ ...r, source: "Magazine QR" }))
+    return [...website, ...card, ...magazine]
   }, [data])
 
   const { from, to } = rangeToDates(range, customFrom, customTo)
@@ -200,17 +190,21 @@ export default function QrAnalyticsPage() {
     })
   }, [combined, from, to])
 
-  const websiteCount = filtered.filter(r => r.source === "Website QR").length
-  const cardCount    = filtered.filter(r => r.source === "Business Card QR").length
-  const totalScans   = filtered.length
+  const websiteCount  = filtered.filter(r => r.source === "Website QR").length
+  const cardCount     = filtered.filter(r => r.source === "Business Card QR").length
+  const magazineCount = filtered.filter(r => r.source === "Magazine QR").length
+  const totalScans    = filtered.length
 
-  const deviceCounts: Record<string, number> = { iOS: 0, Android: 0, Desktop: 0, Other: 0 }
-  for (const r of filtered) deviceCounts[r.device] = (deviceCounts[r.device] ?? 0) + 1
+  const deviceCounts: Record<string, number> = { iOS: 0, Android: 0, Fallback: 0 }
+  for (const r of filtered) {
+    const key = r.device === "iOS" || r.device === "Android" ? r.device : "Fallback"
+    deviceCounts[key] = (deviceCounts[key] ?? 0) + 1
+  }
   const topDevice = Object.entries(deviceCounts).sort((a, b) => b[1] - a[1])[0] ?? ["—", 0]
 
   // Time series — daily buckets, weekly if range spans > 60 days
   const seriesData = useMemo(() => {
-    if (!filtered.length) return { labels: [], website: [], card: [] }
+    if (!filtered.length) return { labels: [], website: [], card: [], magazine: [] }
     const times = filtered.map(r => new Date(r.timestamp).getTime())
     const minT = from ? from.getTime() : Math.min(...times)
     const maxT = to ? to.getTime() : Math.max(...times)
@@ -227,10 +221,11 @@ export default function QrAnalyticsPage() {
       cursor = bEnd
     }
 
-    const website = buckets.map(b => filtered.filter(r => r.source === "Website QR" && new Date(r.timestamp).getTime() >= b.start && new Date(r.timestamp).getTime() < b.end).length)
-    const card    = buckets.map(b => filtered.filter(r => r.source === "Business Card QR" && new Date(r.timestamp).getTime() >= b.start && new Date(r.timestamp).getTime() < b.end).length)
+    const website  = buckets.map(b => filtered.filter(r => r.source === "Website QR" && new Date(r.timestamp).getTime() >= b.start && new Date(r.timestamp).getTime() < b.end).length)
+    const card     = buckets.map(b => filtered.filter(r => r.source === "Business Card QR" && new Date(r.timestamp).getTime() >= b.start && new Date(r.timestamp).getTime() < b.end).length)
+    const magazine = buckets.map(b => filtered.filter(r => r.source === "Magazine QR" && new Date(r.timestamp).getTime() >= b.start && new Date(r.timestamp).getTime() < b.end).length)
 
-    return { labels: buckets.map(b => b.label), website, card }
+    return { labels: buckets.map(b => b.label), website, card, magazine }
   }, [filtered, from, to])
 
   const recentScans = useMemo(() => [...filtered].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()), [filtered])
@@ -256,6 +251,7 @@ export default function QrAnalyticsPage() {
       datasets: [
         { label: "Website QR", data: seriesData.website, borderColor: C.G, backgroundColor: C.Gd, fill: true, tension: .4, pointRadius: 0, borderWidth: 2 },
         { label: "Business Card QR", data: seriesData.card, borderColor: C.B, backgroundColor: C.Bd, fill: true, tension: .4, pointRadius: 0, borderWidth: 2 },
+        { label: "Magazine QR", data: seriesData.magazine, borderColor: C.A, backgroundColor: C.Ad, fill: true, tension: .4, pointRadius: 0, borderWidth: 2 },
       ],
     },
     options: { ...base, interaction: { mode: "index", intersect: false }, plugins: { ...base.plugins, legend: { display: true, labels: { color: C.MU, boxWidth: 8, font: { size: 10 }, padding: 16 } } } },
@@ -264,17 +260,17 @@ export default function QrAnalyticsPage() {
   useChart("qr-c2", () => ({
     type: "doughnut",
     data: {
-      labels: ["iOS", "Android", "Desktop", "Other"],
-      datasets: [{ data: [deviceCounts.iOS, deviceCounts.Android, deviceCounts.Desktop, deviceCounts.Other], backgroundColor: DEV_BG, borderColor: DEV_COLORS, borderWidth: 2, hoverOffset: 5 }],
+      labels: ["iOS", "Android", "Fallback"],
+      datasets: [{ data: [deviceCounts.iOS, deviceCounts.Android, deviceCounts.Fallback], backgroundColor: DEV_BG, borderColor: DEV_COLORS, borderWidth: 2, hoverOffset: 5 }],
     },
     options: { responsive: false, cutout: "64%", animation: { duration: 400 }, plugins: { legend: { display: false }, tooltip: { ...tip, callbacks: { label: (c: any) => ` ${Number(c.raw)} (${totalScans ? Math.round(Number(c.raw) / totalScans * 100) : 0}%)` } } } },
-  }), [deviceCounts.iOS, deviceCounts.Android, deviceCounts.Desktop, deviceCounts.Other, chartReady])
+  }), [deviceCounts.iOS, deviceCounts.Android, deviceCounts.Fallback, chartReady])
 
   useChart("qr-c3", () => ({
     type: "bar",
-    data: { labels: ["Website QR", "Business Card QR"], datasets: [{ data: [websiteCount, cardCount], backgroundColor: [C.Bd, C.Gd], borderColor: [C.B, C.G], borderWidth: 1.5, borderRadius: 5 }] },
+    data: { labels: ["Website QR", "Business Card QR", "Magazine QR"], datasets: [{ data: [websiteCount, cardCount, magazineCount], backgroundColor: [C.Bd, C.Gd, C.Ad], borderColor: [C.B, C.G, C.A], borderWidth: 1.5, borderRadius: 5 }] },
     options: base,
-  }), [websiteCount, cardCount, chartReady])
+  }), [websiteCount, cardCount, magazineCount, chartReady])
 
   if (status === "loading" || (status === "authenticated" && loading)) {
     return (
@@ -309,102 +305,37 @@ export default function QrAnalyticsPage() {
           <div>
             <div style={{ fontSize: 11, color: "#7a7e9a", letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 4 }}>Report</div>
             <h1 style={{ fontSize: 22, fontWeight: 700, color: "#121428", margin: "0 0 4px" }}>QR Scan Analytics</h1>
-            <p style={{ fontSize: 12, color: "#7a7e9a", margin: 0 }}>Monitor engagement across your website and business card QR codes.</p>
+            <p style={{ fontSize: 12, color: "#7a7e9a", margin: 0 }}>Monitor engagement across your website, business card, and magazine QR codes.</p>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={handleClear} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, padding: "8px 14px", border: "1px solid #e2ddd4", borderRadius: 6, background: "#fff", color: "#7a7e9a", cursor: "pointer", fontFamily: "inherit" }}>
-              Clear
-            </button>
-            <button onClick={handleExport} disabled={!recentScans.length} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, padding: "8px 14px", border: "none", borderRadius: 6, background: "#121428", color: "#fff", cursor: recentScans.length ? "pointer" : "not-allowed", opacity: recentScans.length ? 1 : .5, fontFamily: "inherit" }}>
-              Export
-            </button>
-          </div>
-        </div>
-
-        {/* ── Upload cards ──────────────────────────────────────────── */}
-        <div style={s.g2}>
-          {([
-            { key: "website" as const, title: "Website QR", desc: "Upload the scan export for your website QR code", count: data?.website?.records?.length ?? 0 },
-            { key: "card" as const, title: "Business Card QR", desc: "Upload the scan export for your business card QR code", count: data?.card?.records?.length ?? 0 },
-          ]).map(cfg => (
-            <div key={cfg.key} style={s.upcard}>
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#121428" }}>{cfg.title}</div>
-                  <div style={{ fontSize: 11, color: "#7a7e9a", marginTop: 2 }}>{cfg.desc}</div>
-                </div>
-                <span style={{ fontSize: 11, fontWeight: 700, background: "#f0ede6", color: "#3c3f5e", borderRadius: 12, padding: "3px 10px" }}>{cfg.count}</span>
-              </div>
-
-              {cfg.key === "card" && (
-                <div style={{ marginTop: 12, padding: "10px 12px", background: C.Gd, border: `1px solid ${C.G}`, borderRadius: 8 }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ width: 7, height: 7, borderRadius: "50%", background: C.G, flexShrink: 0 }} />
-                      <span style={{ fontSize: 11, fontWeight: 600, color: C.G }}>Auto-synced from VaekstNet.dk</span>
-                    </div>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <button onClick={() => handleCardSync("sync")} disabled={!!cardSyncing} style={{ fontSize: 10, fontWeight: 600, padding: "4px 10px", border: `1px solid ${C.G}`, borderRadius: 4, background: "#fff", color: C.G, cursor: cardSyncing ? "default" : "pointer", fontFamily: "inherit" }}>
-                        {cardSyncing === "sync" ? "Syncing…" : "↻ Sync now"}
-                      </button>
-                      <button onClick={() => handleCardSync("backfill")} disabled={!!cardSyncing} style={{ fontSize: 10, fontWeight: 600, padding: "4px 10px", border: `1px solid ${C.G}`, borderRadius: 4, background: "#fff", color: C.G, cursor: cardSyncing ? "default" : "pointer", fontFamily: "inherit" }}>
-                        {cardSyncing === "backfill" ? "Backfilling…" : "Backfill 30d"}
-                      </button>
-                    </div>
-                  </div>
-                  <div style={{ fontSize: 10, color: "#3c3f5e", marginTop: 6 }}>
-                    {data?.cardAutoSync?.lastSyncedAt
-                      ? <>Last synced {fmtDateTime(data.cardAutoSync.lastSyncedAt)}</>
-                      : <>Not synced yet — runs automatically twice a day, or click Sync now.</>}
-                  </div>
-                  {data?.cardAutoSync?.lastError && (
-                    <div style={{ fontSize: 10, color: "#b91c1c", marginTop: 4 }}>Last sync error: {data.cardAutoSync.lastError}</div>
-                  )}
-                  {cardSyncMsg && (
-                    <div style={{ fontSize: 10, color: cardSyncMsg.startsWith("Error") ? "#b91c1c" : C.G, marginTop: 4 }}>{cardSyncMsg}</div>
-                  )}
-                </div>
-              )}
-
-              <label
-                style={{ ...s.dropzone, borderColor: dragOver[cfg.key] ? C.P : "#d8d3c8", background: dragOver[cfg.key] ? "rgba(90,73,152,.04)" : "#fbfaf7" }}
-                onDragOver={e => { e.preventDefault(); setDragOver(d => ({ ...d, [cfg.key]: true })) }}
-                onDragLeave={() => setDragOver(d => ({ ...d, [cfg.key]: false }))}
-                onDrop={e => {
-                  e.preventDefault()
-                  setDragOver(d => ({ ...d, [cfg.key]: false }))
-                  const file = e.dataTransfer.files?.[0]
-                  if (file) handleUpload(cfg.key, file)
-                }}
-              >
-                <input
-                  type="file"
-                  accept=".csv"
-                  style={{ display: "none" }}
-                  onChange={e => { const file = e.target.files?.[0]; if (file) handleUpload(cfg.key, file) }}
-                />
-                <div style={{ fontSize: 12, color: "#3c3f5e" }}>
-                  {uploading[cfg.key]
-                    ? "Uploading…"
-                    : <>Drop CSV here or <span style={{ color: C.P, fontWeight: 600 }}>browse</span></>}
-                </div>
-                <div style={{ fontSize: 10, color: "#7a7e9a", marginTop: 4 }}>
-                  {cfg.key === "card" ? "Optional — for historical backfill before auto-sync started" : "Accepts .csv exports"}
-                </div>
-              </label>
-              {uploadMsg[cfg.key] && (
-                <div style={{ marginTop: 8, fontSize: 11, color: uploadMsg[cfg.key].startsWith("Error") ? "#b91c1c" : C.G }}>{uploadMsg[cfg.key]}</div>
-              )}
-              {data?.[cfg.key]?.uploadedAt && (
-                <div style={{ marginTop: 4, fontSize: 10, color: "#7a7e9a" }}>Last CSV upload {fmtDateTime(data[cfg.key].uploadedAt)}</div>
-              )}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={handleCardSync} disabled={cardSyncing} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, padding: "8px 14px", border: "1px solid #e2ddd4", borderRadius: 6, background: "#fff", color: C.G, cursor: cardSyncing ? "default" : "pointer", fontFamily: "inherit" }}>
+                {cardSyncing ? "Syncing…" : "↻ Sync now"}
+              </button>
+              <button onClick={handleClear} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, padding: "8px 14px", border: "1px solid #e2ddd4", borderRadius: 6, background: "#fff", color: "#7a7e9a", cursor: "pointer", fontFamily: "inherit" }}>
+                Clear
+              </button>
+              <button onClick={handleExport} disabled={!recentScans.length} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, padding: "8px 14px", border: "none", borderRadius: 6, background: "#121428", color: "#fff", cursor: recentScans.length ? "pointer" : "not-allowed", opacity: recentScans.length ? 1 : .5, fontFamily: "inherit" }}>
+                Export
+              </button>
             </div>
-          ))}
+            <div style={{ fontSize: 10, color: "#7a7e9a" }}>
+              {data?.cardAutoSync?.lastSyncedAt
+                ? <>Last synced {fmtDateTime(data.cardAutoSync.lastSyncedAt)}</>
+                : <>Not synced yet — runs automatically at 7am and 6pm CET</>}
+            </div>
+            {data?.cardAutoSync?.lastError && (
+              <div style={{ fontSize: 10, color: "#b91c1c" }}>Sync error: {data.cardAutoSync.lastError}</div>
+            )}
+            {cardSyncMsg && (
+              <div style={{ fontSize: 10, color: cardSyncMsg.startsWith("Error") ? "#b91c1c" : C.G }}>{cardSyncMsg}</div>
+            )}
+          </div>
         </div>
 
         {!combined.length && !loading && (
-          <div style={{ background: "#fff", border: "1px solid #e2ddd4", borderRadius: 10, padding: "24px", textAlign: "center", marginTop: 16 }}>
-            <div style={{ color: "#7a7e9a", fontSize: 13 }}>No scan data yet — upload a CSV export above to get started.</div>
+          <div style={{ background: "#fff", border: "1px solid #e2ddd4", borderRadius: 10, padding: "24px", textAlign: "center", marginBottom: 16 }}>
+            <div style={{ color: "#7a7e9a", fontSize: 13 }}>No scan data yet — waiting for the next auto-sync, or click Sync now above.</div>
           </div>
         )}
 
@@ -478,7 +409,7 @@ export default function QrAnalyticsPage() {
               <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
                 <canvas id="qr-c2" width={180} height={180} style={{ flexShrink: 0 }} />
                 <div style={{ flex: 1 }}>
-                  {[["iOS", deviceCounts.iOS, C.B], ["Android", deviceCounts.Android, C.G], ["Desktop", deviceCounts.Desktop, C.A], ["Other", deviceCounts.Other, "#9a96a8"]].map(([label, count, color]) => (
+                  {[["iOS", deviceCounts.iOS, C.B], ["Android", deviceCounts.Android, C.G], ["Fallback", deviceCounts.Fallback, "#9a96a8"]].map(([label, count, color]) => (
                     <div key={label as string} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid #e2ddd4" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <div style={{ width: 8, height: 8, borderRadius: "50%", background: color as string, flexShrink: 0 }} />
@@ -492,6 +423,7 @@ export default function QrAnalyticsPage() {
                   ))}
                 </div>
               </div>
+              <div style={{ fontSize: 10, color: "#7a7e9a", marginTop: 10 }}>Fallback = device couldn't be precisely detected</div>
             </div>
             <div style={s.cc}>
               <div style={{ marginBottom: 12 }}>
@@ -512,29 +444,31 @@ export default function QrAnalyticsPage() {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr>
-                  <th style={s.th}>Date &amp; time</th>
+                  <th style={s.th}>Date</th>
                   <th style={s.th}>Source</th>
                   <th style={s.th}>Device</th>
                   <th style={s.th}>OS</th>
-                  <th style={s.th}>Location</th>
                 </tr>
               </thead>
               <tbody>
-                {recentScans.slice(0, visibleScans).map((r, i) => (
-                  <tr key={i}>
-                    <td style={{ ...s.td, fontSize: 11, color: "#7a7e9a" }}>{fmtDateTime(r.timestamp)}</td>
-                    <td style={s.td}>
-                      <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 10, background: r.source === "Website QR" ? C.Gd : C.Bd, color: r.source === "Website QR" ? C.G : C.B }}>
-                        {r.source}
-                      </span>
-                    </td>
-                    <td style={s.td}>{r.device}</td>
-                    <td style={{ ...s.td, color: "#7a7e9a" }}>{r.os}</td>
-                    <td style={{ ...s.td, color: "#7a7e9a" }}>{r.location}</td>
-                  </tr>
-                ))}
+                {recentScans.slice(0, visibleScans).map((r, i) => {
+                  const badgeColor = r.source === "Website QR" ? C.G : r.source === "Business Card QR" ? C.B : C.A
+                  const badgeBg    = r.source === "Website QR" ? C.Gd : r.source === "Business Card QR" ? C.Bd : C.Ad
+                  return (
+                    <tr key={i}>
+                      <td style={{ ...s.td, fontSize: 11, color: "#7a7e9a" }}>{fmtDateOnly(r.timestamp)}</td>
+                      <td style={s.td}>
+                        <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 10, background: badgeBg, color: badgeColor }}>
+                          {r.source}
+                        </span>
+                      </td>
+                      <td style={s.td}>{r.device}</td>
+                      <td style={{ ...s.td, color: "#7a7e9a" }}>{r.os}</td>
+                    </tr>
+                  )
+                })}
                 {recentScans.length === 0 && (
-                  <tr><td colSpan={5} style={{ ...s.td, textAlign: "center", padding: "32px 16px", color: "#7a7e9a" }}>No scans in this period</td></tr>
+                  <tr><td colSpan={4} style={{ ...s.td, textAlign: "center", padding: "32px 16px", color: "#7a7e9a" }}>No scans in this period</td></tr>
                 )}
               </tbody>
             </table>

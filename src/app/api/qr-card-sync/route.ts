@@ -23,7 +23,7 @@ function buildSyntheticRecords(day: WpCardStatsDay): ScanRecord[] {
     records.push({ timestamp: ts, device: "Android", os: "Android (auto-synced)", location: "—", origin: "auto" })
   }
   for (let i = 0; i < (day.fallback || 0); i++) {
-    records.push({ timestamp: ts, device: "Other", os: "Other (auto-synced)", location: "—", origin: "auto" })
+    records.push({ timestamp: ts, device: "Fallback", os: "Fallback (auto-synced)", location: "—", origin: "auto" })
   }
 
   return records

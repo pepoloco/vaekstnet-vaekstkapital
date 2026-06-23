@@ -50,8 +50,7 @@ function categorizeDevice(osRaw: string, deviceRaw: string): ScanRecord["device"
   const v = `${deviceRaw} ${osRaw}`.toLowerCase()
   if (v.includes("ios") || v.includes("iphone") || v.includes("ipad")) return "iOS"
   if (v.includes("android")) return "Android"
-  if (v.includes("windows") || v.includes("mac") || v.includes("linux") || v.includes("cros") || v.includes("desktop")) return "Desktop"
-  return "Other"
+  return "Fallback"
 }
 
 function parseTimestamp(dateRaw: string, timeRaw: string): string | null {
@@ -74,8 +73,8 @@ export async function POST(req: Request) {
 
   const source = body.source
   const csv = body.csv
-  if (source !== "website" && source !== "card") {
-    return NextResponse.json({ error: "source must be 'website' or 'card'" }, { status: 400 })
+  if (source !== "website" && source !== "card" && source !== "magazine") {
+    return NextResponse.json({ error: "source must be 'website', 'card', or 'magazine'" }, { status: 400 })
   }
   if (!csv || typeof csv !== "string") {
     return NextResponse.json({ error: "Missing CSV content" }, { status: 400 })

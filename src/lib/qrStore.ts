@@ -4,7 +4,7 @@ const CACHE_KEY = "vk-qr-scans"
 
 export type ScanRecord = {
   timestamp: string // ISO
-  device: "iOS" | "Android" | "Desktop" | "Other"
+  device: "iOS" | "Android" | "Fallback"
   os: string
   location: string
   origin: "csv" | "auto"
@@ -18,6 +18,7 @@ export type QrSource = {
 export type QrStore = {
   website: QrSource
   card: QrSource
+  magazine: QrSource
   cardAutoSync: {
     lastSyncedAt: string | null
     lastError: string | null
@@ -25,8 +26,9 @@ export type QrStore = {
 }
 
 export const emptyQrStore = (): QrStore => ({
-  website: { records: [], uploadedAt: null },
-  card:    { records: [], uploadedAt: null },
+  website:  { records: [], uploadedAt: null },
+  card:     { records: [], uploadedAt: null },
+  magazine: { records: [], uploadedAt: null },
   cardAutoSync: { lastSyncedAt: null, lastError: null },
 })
 
