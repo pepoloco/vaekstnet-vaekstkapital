@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
-import { fetchCardStats, type WpCardStatsDay } from "@/lib/wordpress"
-import { readQrStore, writeQrStore, type ScanRecord } from "@/lib/qrStore"
+import { fetchQrStats, type WpStatsDay } from "@/lib/wordpress"
+import { readQrStore, writeQrStore, type ScanRecord, type QrSourceKey } from "@/lib/qrStore"
 
 export const maxDuration = 60
 
@@ -10,9 +10,16 @@ function toIsoDate(d: Date): string {
   return d.toISOString().slice(0, 10) // YYYY-MM-DD
 }
 
+// Maps the WordPress plugin's QR-source labels to our internal store keys.
+const SOURCE_MAP: Record<string, QrSourceKey> = {
+  CARD: "card",
+  WEB: "website",
+  MAGAZINES: "magazine",
+}
+
 // Turn a day's aggregate { ios, android, fallback } counts into synthetic
 // per-scan records so they merge cleanly with the existing chart/table logic.
-function buildSyntheticRecords(day: WpCardStatsDay): ScanRecord[] {
+function buildSyntheticRecords(day: WpStatsDay): ScanRecord[] {
   const records: ScanRecord[] = []
   const ts = `${day.stat_date}T12:00:00.000Z`
 
@@ -29,7 +36,7 @@ function buildSyntheticRecords(day: WpCardStatsDay): ScanRecord[] {
   return records
 }
 
-// GET /api/qr-card-sync?days=N
+// GET /api/qr-sync?days=N
 // No auth check — this is invoked by Vercel Cron (see vercel.json), same
 // pattern as /api/sync. Also safe to call manually (e.g. a "Sync now" button).
 export async function GET(req: Request) {
@@ -38,45 +45,62 @@ export async function GET(req: Request) {
 
   try {
     const today = new Date()
-    const fetchedDays: WpCardStatsDay[] = []
+    const bySource: Record<QrSourceKey, WpStatsDay[]> = { website: [], card: [], magazine: [] }
 
     for (let i = 0; i < days; i++) {
       const d = new Date(today)
       d.setDate(today.getDate() - i)
       const dateStr = toIsoDate(d)
 
-      const resp = await fetchCardStats(dateStr)
-      fetchedDays.push(...(resp.stats ?? []))
+      const resp = await fetchQrStats(dateStr)
+      for (const block of resp.sources ?? []) {
+        const key = SOURCE_MAP[block["QR-source"]]
+        if (!key) continue
+        bySource[key].push(...(block.stats ?? []))
+      }
 
       if (i < days - 1) await sleep(150)
     }
 
-    const datesUpdated = new Set(fetchedDays.map(d => d.stat_date))
-    const newAutoRecords = fetchedDays.flatMap(buildSyntheticRecords)
-
     const store = await readQrStore()
-    const existingCsv = store.card.records.filter(r => r.origin === "csv")
-    const existingAutoOtherDays = store.card.records.filter(
-      r => r.origin === "auto" && !datesUpdated.has(r.timestamp.slice(0, 10))
-    )
+    const allDatesUpdated = new Set<string>()
+    let totalNew = 0
 
-    store.card.records = [...existingCsv, ...existingAutoOtherDays, ...newAutoRecords]
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-    store.cardAutoSync = { lastSyncedAt: new Date().toISOString(), lastError: null }
+    for (const key of Object.keys(bySource) as QrSourceKey[]) {
+      const sourceDays = bySource[key]
+      if (!sourceDays.length) continue
 
+      const datesUpdated = new Set(sourceDays.map(d => d.stat_date))
+      datesUpdated.forEach(d => allDatesUpdated.add(d))
+
+      const newAutoRecords = sourceDays.flatMap(buildSyntheticRecords)
+      const existingNonAuto = store[key].records.filter(r => r.origin !== "auto")
+      const existingAutoOtherDays = store[key].records.filter(
+        r => r.origin === "auto" && !datesUpdated.has(r.timestamp.slice(0, 10))
+      )
+
+      store[key] = {
+        records: [...existingNonAuto, ...existingAutoOtherDays, ...newAutoRecords]
+          .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
+        uploadedAt: store[key].uploadedAt,
+      }
+      totalNew += newAutoRecords.length
+    }
+
+    store.autoSync = { lastSyncedAt: new Date().toISOString(), lastError: null }
     await writeQrStore(store)
 
     return NextResponse.json({
       ok: true,
       daysFetched: days,
-      datesUpdated: [...datesUpdated],
-      newRecords: newAutoRecords.length,
+      datesUpdated: [...allDatesUpdated],
+      newRecords: totalNew,
     })
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     try {
       const store = await readQrStore()
-      store.cardAutoSync = { ...store.cardAutoSync, lastError: msg }
+      store.autoSync = { ...store.autoSync, lastError: msg }
       await writeQrStore(store)
     } catch {
       // best-effort error recording

@@ -10,6 +10,8 @@ export type ScanRecord = {
   origin: "csv" | "auto"
 }
 
+export type QrSourceKey = "website" | "card" | "magazine"
+
 export type QrSource = {
   records: ScanRecord[]
   uploadedAt: string | null
@@ -19,7 +21,7 @@ export type QrStore = {
   website: QrSource
   card: QrSource
   magazine: QrSource
-  cardAutoSync: {
+  autoSync: {
     lastSyncedAt: string | null
     lastError: string | null
   }
@@ -29,7 +31,7 @@ export const emptyQrStore = (): QrStore => ({
   website:  { records: [], uploadedAt: null },
   card:     { records: [], uploadedAt: null },
   magazine: { records: [], uploadedAt: null },
-  cardAutoSync: { lastSyncedAt: null, lastError: null },
+  autoSync: { lastSyncedAt: null, lastError: null },
 })
 
 let memCache: QrStore | null = null

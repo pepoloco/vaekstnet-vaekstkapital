@@ -2,7 +2,7 @@
   "crons": [
     { "path": "/api/sync", "schedule": "0 5 * * *" },
     { "path": "/api/sync", "schedule": "0 17 * * *" },
-    { "path": "/api/qr-card-sync", "schedule": "0 6 * * *" },
-    { "path": "/api/qr-card-sync", "schedule": "0 17 * * *" }
+    { "path": "/api/qr-sync", "schedule": "0 6 * * *" },
+    { "path": "/api/qr-sync", "schedule": "0 17 * * *" }
   ]
 }

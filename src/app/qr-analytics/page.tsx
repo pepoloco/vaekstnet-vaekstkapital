@@ -106,8 +106,8 @@ export default function QrAnalyticsPage() {
   const [customFrom, setCustomFrom] = useState("")
   const [customTo, setCustomTo] = useState("")
   const [visibleScans, setVisibleScans] = useState(8)
-  const [cardSyncing, setCardSyncing] = useState(false)
-  const [cardSyncMsg, setCardSyncMsg] = useState("")
+  const [syncing, setSyncing] = useState(false)
+  const [syncMsg, setSyncMsg] = useState("")
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login")
@@ -149,26 +149,26 @@ export default function QrAnalyticsPage() {
     loadData()
   }
 
-  async function handleCardSync() {
+  async function handleSync() {
     console.log("[qr-analytics] Sync now clicked")
-    setCardSyncing(true)
-    setCardSyncMsg("")
+    setSyncing(true)
+    setSyncMsg("")
     try {
-      const r = await fetch(`/api/qr-card-sync?days=2`)
-      console.log("[qr-analytics] /api/qr-card-sync HTTP status", r.status)
+      const r = await fetch(`/api/qr-sync?days=2`)
+      console.log("[qr-analytics] /api/qr-sync HTTP status", r.status)
       const j = await r.json()
-      console.log("[qr-analytics] /api/qr-card-sync response", j)
+      console.log("[qr-analytics] /api/qr-sync response", j)
       if (!j.ok) {
-        setCardSyncMsg(`Error: ${j.error}`)
+        setSyncMsg(`Error: ${j.error}`)
       } else {
-        setCardSyncMsg(`Synced ${j.newRecords} scans across ${j.datesUpdated?.length ?? 0} day(s)`)
+        setSyncMsg(`Synced ${j.newRecords} scans across ${j.datesUpdated?.length ?? 0} day(s)`)
         loadData()
       }
     } catch (e) {
       console.error("[qr-analytics] Sync now threw", e)
-      setCardSyncMsg("Sync failed: " + e)
+      setSyncMsg("Sync failed: " + e)
     }
-    setCardSyncing(false)
+    setSyncing(false)
   }
 
   // ── Derived data ──────────────────────────────────────────────────────
@@ -309,8 +309,8 @@ export default function QrAnalyticsPage() {
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
             <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={handleCardSync} disabled={cardSyncing} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, padding: "8px 14px", border: "1px solid #e2ddd4", borderRadius: 6, background: "#fff", color: C.G, cursor: cardSyncing ? "default" : "pointer", fontFamily: "inherit" }}>
-                {cardSyncing ? "Syncing…" : "↻ Sync now"}
+              <button onClick={handleSync} disabled={syncing} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, padding: "8px 14px", border: "1px solid #e2ddd4", borderRadius: 6, background: "#fff", color: C.G, cursor: syncing ? "default" : "pointer", fontFamily: "inherit" }}>
+                {syncing ? "Syncing…" : "↻ Sync now"}
               </button>
               <button onClick={handleClear} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, padding: "8px 14px", border: "1px solid #e2ddd4", borderRadius: 6, background: "#fff", color: "#7a7e9a", cursor: "pointer", fontFamily: "inherit" }}>
                 Clear
@@ -320,15 +320,15 @@ export default function QrAnalyticsPage() {
               </button>
             </div>
             <div style={{ fontSize: 10, color: "#7a7e9a" }}>
-              {data?.cardAutoSync?.lastSyncedAt
-                ? <>Last synced {fmtDateTime(data.cardAutoSync.lastSyncedAt)}</>
+              {data?.autoSync?.lastSyncedAt
+                ? <>Last synced {fmtDateTime(data.autoSync.lastSyncedAt)}</>
                 : <>Not synced yet — runs automatically at 7am and 6pm CET</>}
             </div>
-            {data?.cardAutoSync?.lastError && (
-              <div style={{ fontSize: 10, color: "#b91c1c" }}>Sync error: {data.cardAutoSync.lastError}</div>
+            {data?.autoSync?.lastError && (
+              <div style={{ fontSize: 10, color: "#b91c1c" }}>Sync error: {data.autoSync.lastError}</div>
             )}
-            {cardSyncMsg && (
-              <div style={{ fontSize: 10, color: cardSyncMsg.startsWith("Error") ? "#b91c1c" : C.G }}>{cardSyncMsg}</div>
+            {syncMsg && (
+              <div style={{ fontSize: 10, color: syncMsg.startsWith("Error") ? "#b91c1c" : C.G }}>{syncMsg}</div>
             )}
           </div>
         </div>

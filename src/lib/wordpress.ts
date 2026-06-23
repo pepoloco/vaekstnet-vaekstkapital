@@ -1,5 +1,8 @@
 /**
- * VaekstNet — Fetch card stats from WordPress REST API
+ * VaekstNet — Fetch QR redirect stats from WordPress REST API
+ *
+ * One endpoint returns all three QR sources (CARD, WEB, MAGAZINES) for a
+ * given day in a single call — see vaekstnet-card-stats-api.php (v1.1.0+).
  *
  * Env vars (set in Vercel project settings):
  *   WORDPRESS_API_BASE_URL  →  e.g. https://YOUR-WORDPRESS-DOMAIN.com
@@ -7,20 +10,24 @@
  *                              vaekstnet-card-stats-api.php on the WordPress side
  */
 
-export type WpCardStatsDay = {
+export type WpStatsDay = {
   stat_date: string // YYYY-MM-DD
   ios: number
   android: number
   fallback: number
 }
 
-export type WpCardStatsResponse = {
-  "QR-source": string
-  date: string
-  stats: WpCardStatsDay[]
+export type WpSourceBlock = {
+  "QR-source": string // "CARD" | "WEB" | "MAGAZINES"
+  stats: WpStatsDay[]
 }
 
-export async function fetchCardStats(date: string | null = null): Promise<WpCardStatsResponse> {
+export type WpQrStatsResponse = {
+  date: string
+  sources: WpSourceBlock[]
+}
+
+export async function fetchQrStats(date: string | null = null): Promise<WpQrStatsResponse> {
   const rawBase = process.env.WORDPRESS_API_BASE_URL
   const apiKey = process.env.WORDPRESS_API_KEY
 
@@ -50,5 +57,20 @@ export async function fetchCardStats(date: string | null = null): Promise<WpCard
     throw new Error(`WordPress API error: ${response.status} ${response.statusText} (${url.toString()})`)
   }
 
-  return response.json()
+  const raw = await response.json()
+
+  // Multi-source shape (current plugin, v1.1.0+): { date, sources: [...] }
+  if (Array.isArray(raw?.sources)) {
+    return raw as WpQrStatsResponse
+  }
+
+  // Legacy single-source shape: { "QR-source": "CARD", date, stats: [...] }
+  if (raw?.["QR-source"] && Array.isArray(raw?.stats)) {
+    return {
+      date: raw.date,
+      sources: [{ "QR-source": raw["QR-source"], stats: raw.stats }],
+    }
+  }
+
+  return { date: raw?.date ?? date ?? "", sources: [] }
 }
