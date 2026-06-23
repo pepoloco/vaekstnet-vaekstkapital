@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { useSession, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import DashboardTabs from "@/app/components/DashboardTabs"
 
 const PORTAL = "144061788"
 
@@ -204,15 +205,7 @@ export default function JoakimPage() {
         </div>
       </nav>
 
-      {/* Tab bar */}
-      <div style={s.tabs}>
-        <a href="/users" style={{ fontSize: 11, fontWeight: 600, letterSpacing: ".06em", textTransform: "uppercase", padding: "12px 14px", color: "rgba(255,255,255,.4)", textDecoration: "none", borderBottom: "2px solid transparent" }}>
-          User Activation
-        </a>
-        <a href="/joakim" style={{ fontSize: 11, fontWeight: 600, letterSpacing: ".06em", textTransform: "uppercase", padding: "12px 14px", color: "#fff", textDecoration: "none", borderBottom: "2px solid #5a4998" }}>
-          Joakim VaekstNet Dashboard Draft
-        </a>
-      </div>
+      <DashboardTabs active="/joakim" />
 
       <div style={s.main}>
 
