@@ -1,51 +1,6 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
-
-const UPSTASH_URL   = process.env.KV_REST_API_URL
-const UPSTASH_TOKEN = process.env.KV_REST_API_TOKEN
-const CACHE_KEY = "vk-qr-scans"
-
-export type ScanRecord = {
-  timestamp: string // ISO
-  device: "iOS" | "Android" | "Desktop" | "Other"
-  os: string
-  location: string
-}
-
-type QrStore = {
-  website: { records: ScanRecord[]; uploadedAt: string | null }
-  card:    { records: ScanRecord[]; uploadedAt: string | null }
-}
-
-const emptyStore = (): QrStore => ({
-  website: { records: [], uploadedAt: null },
-  card:    { records: [], uploadedAt: null },
-})
-
-let memCache: QrStore | null = null
-
-async function readCache(): Promise<QrStore> {
-  if (!UPSTASH_URL || !UPSTASH_TOKEN) return memCache ?? emptyStore()
-  const res = await fetch(`${UPSTASH_URL}/get/${CACHE_KEY}`, {
-    headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` },
-    cache: "no-store",
-  })
-  const json = await res.json()
-  if (!json.result) return emptyStore()
-  let value = json.result
-  while (typeof value === "string") value = JSON.parse(value)
-  return value as QrStore
-}
-
-async function writeCache(data: QrStore) {
-  if (!UPSTASH_URL || !UPSTASH_TOKEN) { memCache = data; return }
-  await fetch(`${UPSTASH_URL}/set/${CACHE_KEY}`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${UPSTASH_TOKEN}`, "Content-Type": "application/json" },
-    body: JSON.stringify(JSON.stringify(data)),
-    cache: "no-store",
-  })
-}
+import { readQrStore, writeQrStore, type ScanRecord } from "@/lib/qrStore"
 
 // ── Minimal CSV parser (handles quoted fields, embedded commas, CRLF) ──────
 function parseCsv(text: string): string[][] {
@@ -162,15 +117,20 @@ export async function POST(req: Request) {
         .filter(Boolean).join(", ")
     }
 
-    records.push({ timestamp, device, os: osRaw || device, location: location || "Unknown" })
+    records.push({ timestamp, device, os: osRaw || device, location: location || "Unknown", origin: "csv" })
     imported++
   }
 
-  records.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+  const store = await readQrStore()
 
-  const store = await readCache()
-  store[source] = { records, uploadedAt: new Date().toISOString() }
-  await writeCache(store)
+  // Preserve any auto-synced records (from the WordPress cron) — a CSV
+  // upload only replaces previously-uploaded CSV rows for this source.
+  const preservedAuto = store[source].records.filter(r => r.origin === "auto")
+  const merged = [...records, ...preservedAuto]
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+
+  store[source] = { records: merged, uploadedAt: new Date().toISOString() }
+  await writeQrStore(store)
 
   return NextResponse.json({ ok: true, imported, skipped, total: records.length })
 }

@@ -107,6 +107,8 @@ export default function QrAnalyticsPage() {
   const [uploadMsg, setUploadMsg] = useState<{ website: string; card: string }>({ website: "", card: "" })
   const [dragOver, setDragOver] = useState<{ website: boolean; card: boolean }>({ website: false, card: false })
   const [visibleScans, setVisibleScans] = useState(8)
+  const [cardSyncing, setCardSyncing] = useState<false | "sync" | "backfill">(false)
+  const [cardSyncMsg, setCardSyncMsg] = useState("")
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login")
@@ -159,6 +161,25 @@ export default function QrAnalyticsPage() {
     if (!window.confirm("Clear all uploaded QR scan data? This cannot be undone.")) return
     await fetch("/api/qr-clear", { method: "POST" })
     loadData()
+  }
+
+  async function handleCardSync(mode: "sync" | "backfill") {
+    setCardSyncing(mode)
+    setCardSyncMsg("")
+    try {
+      const days = mode === "backfill" ? 30 : 2
+      const r = await fetch(`/api/qr-card-sync?days=${days}`)
+      const j = await r.json()
+      if (!j.ok) {
+        setCardSyncMsg(`Error: ${j.error}`)
+      } else {
+        setCardSyncMsg(`Synced ${j.newRecords} scans across ${j.datesUpdated?.length ?? 0} day(s)`)
+        loadData()
+      }
+    } catch (e) {
+      setCardSyncMsg("Sync failed: " + e)
+    }
+    setCardSyncing(false)
   }
 
   // ── Derived data ──────────────────────────────────────────────────────
@@ -314,6 +335,37 @@ export default function QrAnalyticsPage() {
                 </div>
                 <span style={{ fontSize: 11, fontWeight: 700, background: "#f0ede6", color: "#3c3f5e", borderRadius: 12, padding: "3px 10px" }}>{cfg.count}</span>
               </div>
+
+              {cfg.key === "card" && (
+                <div style={{ marginTop: 12, padding: "10px 12px", background: C.Gd, border: `1px solid ${C.G}`, borderRadius: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ width: 7, height: 7, borderRadius: "50%", background: C.G, flexShrink: 0 }} />
+                      <span style={{ fontSize: 11, fontWeight: 600, color: C.G }}>Auto-synced from VaekstNet.dk</span>
+                    </div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button onClick={() => handleCardSync("sync")} disabled={!!cardSyncing} style={{ fontSize: 10, fontWeight: 600, padding: "4px 10px", border: `1px solid ${C.G}`, borderRadius: 4, background: "#fff", color: C.G, cursor: cardSyncing ? "default" : "pointer", fontFamily: "inherit" }}>
+                        {cardSyncing === "sync" ? "Syncing…" : "↻ Sync now"}
+                      </button>
+                      <button onClick={() => handleCardSync("backfill")} disabled={!!cardSyncing} style={{ fontSize: 10, fontWeight: 600, padding: "4px 10px", border: `1px solid ${C.G}`, borderRadius: 4, background: "#fff", color: C.G, cursor: cardSyncing ? "default" : "pointer", fontFamily: "inherit" }}>
+                        {cardSyncing === "backfill" ? "Backfilling…" : "Backfill 30d"}
+                      </button>
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 10, color: "#3c3f5e", marginTop: 6 }}>
+                    {data?.cardAutoSync?.lastSyncedAt
+                      ? <>Last synced {fmtDateTime(data.cardAutoSync.lastSyncedAt)}</>
+                      : <>Not synced yet — runs automatically twice a day, or click Sync now.</>}
+                  </div>
+                  {data?.cardAutoSync?.lastError && (
+                    <div style={{ fontSize: 10, color: "#b91c1c", marginTop: 4 }}>Last sync error: {data.cardAutoSync.lastError}</div>
+                  )}
+                  {cardSyncMsg && (
+                    <div style={{ fontSize: 10, color: cardSyncMsg.startsWith("Error") ? "#b91c1c" : C.G, marginTop: 4 }}>{cardSyncMsg}</div>
+                  )}
+                </div>
+              )}
+
               <label
                 style={{ ...s.dropzone, borderColor: dragOver[cfg.key] ? C.P : "#d8d3c8", background: dragOver[cfg.key] ? "rgba(90,73,152,.04)" : "#fbfaf7" }}
                 onDragOver={e => { e.preventDefault(); setDragOver(d => ({ ...d, [cfg.key]: true })) }}
@@ -336,13 +388,15 @@ export default function QrAnalyticsPage() {
                     ? "Uploading…"
                     : <>Drop CSV here or <span style={{ color: C.P, fontWeight: 600 }}>browse</span></>}
                 </div>
-                <div style={{ fontSize: 10, color: "#7a7e9a", marginTop: 4 }}>Accepts .csv exports</div>
+                <div style={{ fontSize: 10, color: "#7a7e9a", marginTop: 4 }}>
+                  {cfg.key === "card" ? "Optional — for historical backfill before auto-sync started" : "Accepts .csv exports"}
+                </div>
               </label>
               {uploadMsg[cfg.key] && (
                 <div style={{ marginTop: 8, fontSize: 11, color: uploadMsg[cfg.key].startsWith("Error") ? "#b91c1c" : C.G }}>{uploadMsg[cfg.key]}</div>
               )}
               {data?.[cfg.key]?.uploadedAt && (
-                <div style={{ marginTop: 4, fontSize: 10, color: "#7a7e9a" }}>Last uploaded {fmtDateTime(data[cfg.key].uploadedAt)}</div>
+                <div style={{ marginTop: 4, fontSize: 10, color: "#7a7e9a" }}>Last CSV upload {fmtDateTime(data[cfg.key].uploadedAt)}</div>
               )}
             </div>
           ))}
