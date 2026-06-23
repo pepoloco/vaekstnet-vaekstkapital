@@ -21,12 +21,16 @@ export type WpCardStatsResponse = {
 }
 
 export async function fetchCardStats(date: string | null = null): Promise<WpCardStatsResponse> {
-  const base = process.env.WORDPRESS_API_BASE_URL
+  const rawBase = process.env.WORDPRESS_API_BASE_URL
   const apiKey = process.env.WORDPRESS_API_KEY
 
-  if (!base || !apiKey) {
+  if (!rawBase || !apiKey) {
     throw new Error("WORDPRESS_API_BASE_URL / WORDPRESS_API_KEY are not configured")
   }
+
+  // Strip any trailing slash(es) so we don't end up with a double slash
+  // before /wp-json — WordPress/Nginx routing can 404 on that.
+  const base = rawBase.replace(/\/+$/, "")
 
   // Build URL — optionally pass a date string (YYYY-MM-DD) to query a specific day.
   // Without a date, the endpoint defaults to today.
@@ -43,7 +47,7 @@ export async function fetchCardStats(date: string | null = null): Promise<WpCard
   })
 
   if (!response.ok) {
-    throw new Error(`WordPress API error: ${response.status} ${response.statusText}`)
+    throw new Error(`WordPress API error: ${response.status} ${response.statusText} (${url.toString()})`)
   }
 
   return response.json()
