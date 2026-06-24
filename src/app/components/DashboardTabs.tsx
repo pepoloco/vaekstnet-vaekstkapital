@@ -2,7 +2,7 @@
 
 const TABS = [
   { href: "/users", label: "User Activation" },
-  { href: "/joakim", label: "Joakim VaekstNet Dashboard Draft" },
+  { href: "/joakim", label: "Joakim VaekstNet Dashboard" },
   { href: "/qr-analytics", label: "QR Analytics" },
 ]
 
