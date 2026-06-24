@@ -1,10 +1,8 @@
 {
   "crons": [
-    { "path": "/api/sync", "schedule": "0 5 * * *" },
-    { "path": "/api/sync-evening", "schedule": "0 17 * * *" },
+    { "path": "/api/sync", "schedule": "0 6 * * *" },
+    { "path": "/api/sync-evening", "schedule": "0 18 * * *" },
     { "path": "/api/qr-sync", "schedule": "0 6 * * *" },
-    { "path": "/api/qr-sync-midday", "schedule": "0 8 * * *" },
-    { "path": "/api/qr-sync-evening", "schedule": "0 17 * * *" },
-    { "path": "/api/qr-sync-test", "schedule": "0 9 * * *" }
+    { "path": "/api/qr-sync-evening", "schedule": "0 18 * * *" }
   ]
 }
