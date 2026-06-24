@@ -154,7 +154,7 @@ export default function QrAnalyticsPage() {
     setSyncing(true)
     setSyncMsg("")
     try {
-      const r = await fetch(`/api/qr-sync?days=2`)
+      const r = await fetch(`/api/qr-sync?days=30`)
       console.log("[qr-analytics] /api/qr-sync HTTP status", r.status)
       const j = await r.json()
       console.log("[qr-analytics] /api/qr-sync response", j)
@@ -322,13 +322,13 @@ export default function QrAnalyticsPage() {
             <div style={{ fontSize: 10, color: "#7a7e9a" }}>
               {data?.autoSync?.lastSyncedAt
                 ? <>Last synced {fmtDateTime(data.autoSync.lastSyncedAt)}</>
-                : <>Not synced yet — runs automatically at 7am and 6pm CET</>}
+                : <>Not synced yet — runs automatically at 7am and 7pm CET</>}
             </div>
             {data?.autoSync?.lastError && (
               <div style={{ fontSize: 10, color: "#b91c1c" }}>Sync error: {data.autoSync.lastError}</div>
             )}
             {syncMsg && (
-              <div style={{ fontSize: 10, color: syncMsg.startsWith("Error") ? "#b91c1c" : C.G }}>{syncMsg}</div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: syncMsg.startsWith("Error") ? "#b91c1c" : C.G, padding: "4px 10px", background: syncMsg.startsWith("Error") ? "#fef2f2" : "#f0faf6", borderRadius: 5 }}>{syncMsg}</div>
             )}
           </div>
         </div>
