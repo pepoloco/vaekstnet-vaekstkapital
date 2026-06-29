@@ -313,11 +313,13 @@ export default function JoakimPage() {
               <div style={{ overflowY: "auto", maxHeight: 520 }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 860 }}>
                   <thead style={{ position: "sticky", top: 0, zIndex: 1 }}>
-                    <tr>{TH("#")}{TH("Name")}{TH("Status")}{TH("Investment date")}{TH("Days since")}{TH("VK AuC", true)}{TH("Contact owner")}{TH("Phone")}</tr>
+                    <tr>{TH("#")}{TH("Name")}{TH("Status")}{TH("Investment date")}{TH("Days since")}{TH("VK AuC", true)}{TH("Contact owner")}{TH("Phone")}{TH("Contacted")}</tr>
                   </thead>
                   <tbody>
-                    {data.individualsNeedingOnboarding?.map((r: any, i: number) => (
-                      <tr key={r.id} style={{ background: r.daysSinceInvestment !== null && r.daysSinceInvestment <= 30 ? "rgba(192,57,43,.03)" : undefined }}>
+                    {data.individualsNeedingOnboarding?.map((r: any, i: number) => {
+                      const done = !!contacted[`contact-${r.id}`]
+                      return (
+                      <tr key={r.id} style={{ opacity: done ? 0.5 : 1, background: done ? "#fafaf8" : r.daysSinceInvestment !== null && r.daysSinceInvestment <= 30 ? "rgba(192,57,43,.03)" : undefined }}>
                         <td style={s.td}><span style={s.rank}>{i + 1}</span></td>
                         <td style={s.td}>
                           <HsLink id={r.id} type="contact" name={r.name} color={C.G} />
@@ -333,10 +335,14 @@ export default function JoakimPage() {
                             ? <a href={`tel:${r.phone}`} style={{ color: C.G, textDecoration: "none", fontWeight: 500 }}>{r.phone}</a>
                             : <span style={{ color: "#c9c5bb" }}>—</span>}
                         </td>
+                        <td style={{ ...s.td, textAlign: "center" }}>
+                          <input type="checkbox" checked={done} onChange={() => toggleContacted(`contact-${r.id}`)} style={{ width: 16, height: 16, cursor: "pointer", accentColor: C.G }} />
+                        </td>
                       </tr>
-                    ))}
+                      )
+                    })}
                     {(!data.individualsNeedingOnboarding || data.individualsNeedingOnboarding.length === 0) && (
-                      <tr><td colSpan={8} style={{ ...s.td, textAlign: "center", padding: "32px 16px", color: "#7a7e9a" }}>No records — click ↻ Sync to load from HubSpot</td></tr>
+                      <tr><td colSpan={9} style={{ ...s.td, textAlign: "center", padding: "32px 16px", color: "#7a7e9a" }}>No records — click ↻ Sync to load from HubSpot</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -359,11 +365,13 @@ export default function JoakimPage() {
               <div style={{ overflowY: "auto", maxHeight: 440 }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 860 }}>
                   <thead style={{ position: "sticky", top: 0, zIndex: 1 }}>
-                    <tr>{TH("#")}{TH("Company")}{TH("Associated contacts")}{TH("Investment date")}{TH("Days since")}{TH("VK AuC", true)}{TH("Contact owner")}{TH("Phone")}</tr>
+                    <tr>{TH("#")}{TH("Company")}{TH("Associated contacts")}{TH("Investment date")}{TH("Days since")}{TH("VK AuC", true)}{TH("Contact owner")}{TH("Phone")}{TH("Contacted")}</tr>
                   </thead>
                   <tbody>
-                    {data.companiesNeedingOnboarding?.map((r: any, i: number) => (
-                      <tr key={r.id} style={{ background: r.daysSinceInvestment !== null && r.daysSinceInvestment <= 30 ? "rgba(192,57,43,.03)" : undefined }}>
+                    {data.companiesNeedingOnboarding?.map((r: any, i: number) => {
+                      const done = !!contacted[`company-${r.id}`]
+                      return (
+                      <tr key={r.id} style={{ opacity: done ? 0.5 : 1, background: done ? "#fafaf8" : r.daysSinceInvestment !== null && r.daysSinceInvestment <= 30 ? "rgba(192,57,43,.03)" : undefined }}>
                         <td style={s.td}><span style={s.rank}>{i + 1}</span></td>
                         <td style={s.td}>
                           <HsLink id={r.id} type="company" name={r.name} color={C.B} />
@@ -390,10 +398,14 @@ export default function JoakimPage() {
                             ? <a href={`tel:${r.phone}`} style={{ color: C.B, textDecoration: "none", fontWeight: 500 }}>{r.phone}</a>
                             : <span style={{ color: "#c9c5bb" }}>—</span>}
                         </td>
+                        <td style={{ ...s.td, textAlign: "center" }}>
+                          <input type="checkbox" checked={done} onChange={() => toggleContacted(`company-${r.id}`)} style={{ width: 16, height: 16, cursor: "pointer", accentColor: C.B }} />
+                        </td>
                       </tr>
-                    ))}
+                      )
+                    })}
                     {(!data.companiesNeedingOnboarding || data.companiesNeedingOnboarding.length === 0) && (
-                      <tr><td colSpan={8} style={{ ...s.td, textAlign: "center", padding: "32px 16px", color: "#7a7e9a" }}>No company records — click ↻ Sync to load from HubSpot</td></tr>
+                      <tr><td colSpan={9} style={{ ...s.td, textAlign: "center", padding: "32px 16px", color: "#7a7e9a" }}>No company records — click ↻ Sync to load from HubSpot</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -416,11 +428,13 @@ export default function JoakimPage() {
               <div style={{ overflowY: "auto", maxHeight: 440 }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 860 }}>
                   <thead style={{ position: "sticky", top: 0, zIndex: 1 }}>
-                    <tr>{TH("#")}{TH("Company")}{TH("Onboarded contact(s)")}{TH("Other contacts")}{TH("Investment date")}{TH("VK AuC", true)}{TH("Contact owner")}</tr>
+                    <tr>{TH("#")}{TH("Company")}{TH("Onboarded contact(s)")}{TH("Other contacts")}{TH("Investment date")}{TH("VK AuC", true)}{TH("Contact owner")}{TH("Contacted")}</tr>
                   </thead>
                   <tbody>
-                    {data.companiesWithOnboardedContact?.map((r: any, i: number) => (
-                      <tr key={r.id}>
+                    {data.companiesWithOnboardedContact?.map((r: any, i: number) => {
+                      const done = !!contacted[`company-${r.id}`]
+                      return (
+                      <tr key={r.id} style={{ opacity: done ? 0.5 : 1, background: done ? "#fafaf8" : undefined }}>
                         <td style={s.td}><span style={s.rank}>{i + 1}</span></td>
                         <td style={s.td}>
                           <HsLink id={r.id} type="company" name={r.name} color="#8b5cf6" />
@@ -449,10 +463,14 @@ export default function JoakimPage() {
                         <td style={{ ...s.td, color: "#7a7e9a", fontSize: 11 }}>{fmtDate(r.investmentDate)}</td>
                         <td style={{ ...s.tdr, color: C.P, fontWeight: 500 }}>{r.vkAuc > 0 ? fmtShort(r.vkAuc) : "—"}</td>
                         <td style={{ ...s.td, fontSize: 11, color: "#7a7e9a" }}>{r.owner}</td>
+                        <td style={{ ...s.td, textAlign: "center" }}>
+                          <input type="checkbox" checked={done} onChange={() => toggleContacted(`company-${r.id}`)} style={{ width: 16, height: 16, cursor: "pointer", accentColor: "#8b5cf6" }} />
+                        </td>
                       </tr>
-                    ))}
+                      )
+                    })}
                     {(!data.companiesWithOnboardedContact || data.companiesWithOnboardedContact.length === 0) && (
-                      <tr><td colSpan={7} style={{ ...s.td, textAlign: "center", padding: "32px 16px", color: "#7a7e9a" }}>No company has an onboarded contact yet</td></tr>
+                      <tr><td colSpan={8} style={{ ...s.td, textAlign: "center", padding: "32px 16px", color: "#7a7e9a" }}>No company has an onboarded contact yet</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -478,7 +496,7 @@ export default function JoakimPage() {
                 </thead>
                 <tbody>
                   {data.recentlyOnboarded?.map((r: any, i: number) => {
-                    const done = !!contacted[r.id]
+                    const done = !!contacted[`contact-${r.id}`]
                     return (
                     <tr key={r.id} style={{ opacity: done ? 0.5 : 1, background: done ? "#fafaf8" : undefined }}>
                       <td style={s.td}><span style={s.rank}>{i + 1}</span></td>
@@ -497,12 +515,7 @@ export default function JoakimPage() {
                           : <span style={{ color: "#c9c5bb" }}>—</span>}
                       </td>
                       <td style={{ ...s.td, textAlign: "center" }}>
-                        <input
-                          type="checkbox"
-                          checked={done}
-                          onChange={() => toggleContacted(r.id)}
-                          style={{ width: 16, height: 16, cursor: "pointer", accentColor: C.G }}
-                        />
+                        <input type="checkbox" checked={done} onChange={() => toggleContacted(`contact-${r.id}`)} style={{ width: 16, height: 16, cursor: "pointer", accentColor: C.G }} />
                       </td>
                     </tr>
                     )
