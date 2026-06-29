@@ -113,6 +113,22 @@ export default function JoakimPage() {
   const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState("")
   const [chartReady, setChartReady] = useState(false)
+  const [contacted, setContacted] = useState<Record<string, boolean>>({})
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("joakim-contacted")
+      if (stored) setContacted(JSON.parse(stored))
+    } catch {}
+  }, [])
+
+  function toggleContacted(id: string) {
+    setContacted(prev => {
+      const next = { ...prev, [id]: !prev[id] }
+      try { localStorage.setItem("joakim-contacted", JSON.stringify(next)) } catch {}
+      return next
+    })
+  }
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login")
@@ -458,11 +474,13 @@ export default function JoakimPage() {
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}>
                 <thead>
-                  <tr>{TH("#")}{TH("Name")}{TH("Onboarded")}{TH("Investment date")}{TH("VK AuC", true)}{TH("Total AuC", true)}{TH("Contact owner")}{TH("Phone")}</tr>
+                  <tr>{TH("#")}{TH("Name")}{TH("Onboarded")}{TH("Investment date")}{TH("VK AuC", true)}{TH("Total AuC", true)}{TH("Contact owner")}{TH("Phone")}{TH("Contacted")}</tr>
                 </thead>
                 <tbody>
-                  {data.recentlyOnboarded?.map((r: any, i: number) => (
-                    <tr key={r.id}>
+                  {data.recentlyOnboarded?.map((r: any, i: number) => {
+                    const done = !!contacted[r.id]
+                    return (
+                    <tr key={r.id} style={{ opacity: done ? 0.5 : 1, background: done ? "#fafaf8" : undefined }}>
                       <td style={s.td}><span style={s.rank}>{i + 1}</span></td>
                       <td style={s.td}>
                         <HsLink id={r.id} type="contact" name={r.name} color={C.G} />
@@ -478,10 +496,19 @@ export default function JoakimPage() {
                           ? <a href={`tel:${r.phone}`} style={{ color: C.G, textDecoration: "none", fontWeight: 500 }}>{r.phone}</a>
                           : <span style={{ color: "#c9c5bb" }}>—</span>}
                       </td>
+                      <td style={{ ...s.td, textAlign: "center" }}>
+                        <input
+                          type="checkbox"
+                          checked={done}
+                          onChange={() => toggleContacted(r.id)}
+                          style={{ width: 16, height: 16, cursor: "pointer", accentColor: C.G }}
+                        />
+                      </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                   {(!data.recentlyOnboarded || data.recentlyOnboarded.length === 0) && (
-                    <tr><td colSpan={8} style={{ ...s.td, textAlign: "center", padding: "32px 16px", color: "#7a7e9a" }}>No recent VaekstNet onboardings</td></tr>
+                    <tr><td colSpan={9} style={{ ...s.td, textAlign: "center", padding: "32px 16px", color: "#7a7e9a" }}>No recent VaekstNet onboardings</td></tr>
                   )}
                 </tbody>
               </table>
