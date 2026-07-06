@@ -46,6 +46,7 @@ export async function GET(req: Request) {
   try {
     const today = new Date()
     const bySource: Record<QrSourceKey, WpStatsDay[]> = { website: [], card: [], magazine: [] }
+    const debugLog: Array<{ date: string; raw: unknown }> = []
 
     for (let i = 0; i < days; i++) {
       const d = new Date(today)
@@ -53,6 +54,7 @@ export async function GET(req: Request) {
       const dateStr = toIsoDate(d)
 
       const resp = await fetchQrStats(dateStr)
+      debugLog.push({ date: dateStr, raw: resp })
       for (const block of resp.sources ?? []) {
         const key = SOURCE_MAP[block["QR-source"]]
         if (!key) continue
@@ -95,6 +97,7 @@ export async function GET(req: Request) {
       daysFetched: days,
       datesUpdated: [...allDatesUpdated],
       newRecords: totalNew,
+      debug: debugLog,
     })
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
