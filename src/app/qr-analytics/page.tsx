@@ -365,7 +365,7 @@ export default function QrAnalyticsPage() {
           )}
 
           {/* KPI cards */}
-          <div style={s.g4}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 12, marginBottom: 4 }}>
             <div style={s.kpi}>
               <div style={s.kpiLbl}>Total scans</div>
               <div style={s.kpiVal}>{totalScans}</div>
@@ -380,6 +380,11 @@ export default function QrAnalyticsPage() {
               <div style={s.kpiLbl}>Business card QR</div>
               <div style={s.kpiVal}>{cardCount}</div>
               <div style={s.kpiSub}>{totalScans ? Math.round(cardCount / totalScans * 100) : 0}% of total</div>
+            </div>
+            <div style={s.kpi}>
+              <div style={s.kpiLbl}>Magazine QR</div>
+              <div style={s.kpiVal}>{magazineCount}</div>
+              <div style={s.kpiSub}>{totalScans ? Math.round(magazineCount / totalScans * 100) : 0}% of total</div>
             </div>
             <div style={s.kpi}>
               <div style={s.kpiLbl}>Top device</div>
