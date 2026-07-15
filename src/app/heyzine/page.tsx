@@ -24,6 +24,10 @@ const fmtAxisDate = (iso: string) => {
   const d = new Date(iso + "T00:00:00")
   return `${String(d.getDate()).padStart(2, "0")} ${d.toLocaleString("en-GB", { month: "short" })}`
 }
+const fmtAxisDateYear = (iso: string) => {
+  const d = new Date(iso + "T00:00:00")
+  return `${d.toLocaleString("en-GB", { month: "short" })} '${String(d.getFullYear()).slice(2)}`
+}
 const fmtDuration = (sec: number) => {
   if (!sec) return "0:00"
   const m = Math.floor(sec / 60)
@@ -213,26 +217,28 @@ export default function HeyzinePage() {
 
   const base = { responsive: false, animation: { duration: 400 }, plugins: { legend: { display: false }, tooltip: tip }, scales: sc }
 
+  const axisLabel = range === "all" ? fmtAxisDateYear : fmtAxisDate
+
   useChart("hz-c1", () => ({
     type: "line",
     data: {
-      labels: sortedAsc.map(d => fmtAxisDate(d.date)),
+      labels: sortedAsc.map(d => axisLabel(d.date)),
       datasets: [
         { label: "Visits", data: sortedAsc.map(d => d.visits), borderColor: C.G, backgroundColor: C.Gd, fill: true, tension: .4, pointRadius: 0, borderWidth: 2 },
         { label: "Visitors", data: sortedAsc.map(d => d.visitors), borderColor: C.B, backgroundColor: C.Bd, fill: true, tension: .4, pointRadius: 0, borderWidth: 2 },
       ],
     },
     options: { ...base, interaction: { mode: "index", intersect: false }, plugins: { ...base.plugins, legend: { display: true, labels: { color: C.MU, boxWidth: 8, font: { size: 10 }, padding: 16 } } } },
-  }), [sortedAsc, chartReady])
+  }), [sortedAsc, chartReady, range])
 
   useChart("hz-c2", () => ({
     type: "bar",
     data: {
-      labels: sortedAsc.map(d => fmtAxisDate(d.date)),
+      labels: sortedAsc.map(d => axisLabel(d.date)),
       datasets: [{ label: "Avg duration (s)", data: sortedAsc.map(d => d.duration), backgroundColor: C.Ad, borderColor: C.A, borderWidth: 1.5, borderRadius: 4 }],
     },
     options: base,
-  }), [sortedAsc, chartReady])
+  }), [sortedAsc, chartReady, range])
 
   if (status === "loading" || (status === "authenticated" && loading)) {
     return (
@@ -318,17 +324,14 @@ export default function HeyzinePage() {
             <div style={s.kpi}>
               <div style={s.kpiLbl}>Total visits</div>
               <div style={s.kpiVal}>{totalVisits}</div>
-              <div style={s.kpiSub}>{activeDays} active day{activeDays === 1 ? "" : "s"}</div>
             </div>
             <div style={s.kpi}>
               <div style={s.kpiLbl}>Total visitors</div>
               <div style={s.kpiVal}>{totalVisitors}</div>
-              <div style={s.kpiSub}>{returnRate}% est. return visits</div>
             </div>
             <div style={s.kpi}>
               <div style={s.kpiLbl}>Avg visit duration</div>
               <div style={s.kpiVal}>{fmtDuration(avgDuration)}</div>
-              <div style={s.kpiSub}>minutes:seconds, active days only</div>
             </div>
             <div style={s.kpi}>
               <div style={s.kpiLbl}>Peak day</div>
@@ -363,7 +366,7 @@ export default function HeyzinePage() {
                 <div style={s.ccSub}>Selected period</div>
               </div>
               {[
-                ["Days tracked", filtered.length],
+                ["Days with data", filtered.length],
                 ["Avg visits / day", filtered.length ? (totalVisits / filtered.length).toFixed(1) : "0"],
                 ["Avg visitors / day", filtered.length ? (totalVisitors / filtered.length).toFixed(1) : "0"],
                 ["Longest single-day avg. duration", fmtDuration(Math.max(0, ...filtered.map(d => d.duration)))],
