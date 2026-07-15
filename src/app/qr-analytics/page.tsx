@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useMemo } from "react"
 import { useSession, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import * as XLSX from "xlsx"
 import DashboardTabs from "@/app/components/DashboardTabs"
 
 const C = {
@@ -232,15 +233,44 @@ export default function QrAnalyticsPage() {
   const recentScans = useMemo(() => [...filtered].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()), [filtered])
 
   function handleExport() {
-    const header = "Date & Time,Source,Device,OS,Location\n"
-    const body = recentScans.map(r => [fmtDateTime(r.timestamp), r.source, r.device, r.os, r.location].map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n")
-    const blob = new Blob([header + body], { type: "text/csv;charset=utf-8;" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `vaekstnet-qr-scans-${range}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+    const toRow = (r: any) => ({
+      Date:    fmtDateOnly(r.timestamp),
+      Source:  r.source,
+      Device:  r.device,
+      OS:      r.os,
+    })
+
+    const allRows     = recentScans.map(toRow)
+    const websiteRows = recentScans.filter(r => r.source === "Website QR").map(toRow)
+    const cardRows    = recentScans.filter(r => r.source === "Business Card QR").map(toRow)
+    const magRows     = recentScans.filter(r => r.source === "Magazine QR").map(toRow)
+
+    // Daily summary: count per date per source
+    const dayMap: Record<string, { date: string; website: number; card: number; magazine: number; total: number }> = {}
+    for (const r of recentScans) {
+      const d = fmtDateOnly(r.timestamp)
+      if (!dayMap[d]) dayMap[d] = { date: d, website: 0, card: 0, magazine: 0, total: 0 }
+      if (r.source === "Website QR")       dayMap[d].website++
+      else if (r.source === "Business Card QR") dayMap[d].card++
+      else if (r.source === "Magazine QR") dayMap[d].magazine++
+      dayMap[d].total++
+    }
+    const summaryRows = Object.values(dayMap).sort((a, b) => a.date < b.date ? 1 : -1).map(d => ({
+      Date:             d.date,
+      "Website QR":     d.website,
+      "Business Card QR": d.card,
+      "Magazine QR":    d.magazine,
+      Total:            d.total,
+    }))
+
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(allRows),     "All Scans")
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), "Daily Summary")
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(websiteRows), "Website QR")
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(cardRows),    "Business Card QR")
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(magRows),     "Magazine QR")
+
+    XLSX.writeFile(wb, `vaekstnet-qr-scans-${range}.xlsx`)
   }
 
   const base = { responsive: false, animation: { duration: 400 }, plugins: { legend: { display: false }, tooltip: tip }, scales: sc }
