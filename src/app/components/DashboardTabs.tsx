@@ -4,6 +4,7 @@ const TABS = [
   { href: "/users", label: "User Activation" },
   { href: "/joakim", label: "Joakim VaekstNet Dashboard" },
   { href: "/qr-analytics", label: "QR Analytics" },
+  { href: "/heyzine", label: "Heyzine" },
 ]
 
 export default function DashboardTabs({ active }: { active: string }) {
