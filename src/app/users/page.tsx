@@ -41,6 +41,7 @@ function useChart(id: string, config: () => object, deps: unknown[]) {
   useEffect(() => {
     const el = document.getElementById(id)
     if (!el) return
+    if (typeof (window as any).Chart !== "function") return
     ref.current?.destroy()
     ref.current = new (window as any).Chart(el, config())
     return () => { ref.current?.destroy() }
